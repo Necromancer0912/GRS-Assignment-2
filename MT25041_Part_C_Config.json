@@ -1,0 +1,12 @@
+{
+  "message_sizes": [64, 256, 1024, 4096],
+  "thread_counts": [1, 2, 4, 8],
+  "duration_sec": 3,
+  "warmup_sec": 0.5,
+  "retries": 2,
+  "host": "127.0.0.1",
+  "ports": {"a1": 5001, "a2": 5002, "a3": 5003},
+  "echo": false,
+  "pin_base_cpu": -1,
+  "zerocopy_inflight": 32
+}

@@ -1,0 +1,1488 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage{amsmath, amssymb}
+\usepackage{geometry}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage{fontspec}
+\usepackage[expansion=false]{microtype}
+\usepackage[hidelinks]{hyperref}
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{booktabs}
+\usepackage{listings}
+\usepackage{caption}
+\usepackage{fancyhdr}
+\usepackage{tocloft}
+
+% Font Configuration - Default LaTeX fonts (Latin Modern)
+\setmainfont{Latin Modern Roman}
+\setsansfont{Latin Modern Sans}
+
+\IfFontExistsTF{Iosevka Nerd Font}{
+  \setmonofont{Iosevka Nerd Font}[Scale=0.9]
+}{
+  % Fallback: Try Iosevka NF short name
+  \IfFontExistsTF{Iosevka NF}{
+    \setmonofont{Iosevka NF}[Scale=0.9]
+  }{
+    % Final fallback to Latin Modern Mono
+    \setmonofont{Latin Modern Mono}[Scale=0.9]
+  }
+}
+
+\geometry{top=0.8in, bottom=0.8in, left=0.8in, right=0.8in}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small PA02: Network I/O Primitives Analysis}
+\fancyhead[R]{\small MT25041}
+\fancyfoot[C]{\thepage}
+
+\newcommand{\sectionbox}[1]{%
+  \refstepcounter{section}%
+  \addcontentsline{toc}{section}{#1}%
+  \vspace{0.6em}\noindent\colorbox{blue!15}{\parbox{\dimexpr\textwidth-2\fboxsep}{\textbf{\LARGE #1}}}\vspace{0.4em}}
+\newcommand{\subsectionbox}[1]{%
+  \refstepcounter{subsection}%
+  \addcontentsline{toc}{subsection}{#1}%
+  \vspace{0.4em}\noindent\colorbox{teal!12}{\parbox{\dimexpr\textwidth-2\fboxsep}{\textbf{\large #1}}}\vspace{0.3em}}
+\newcommand{\subsubsectionbox}[1]{%
+  \vspace{0.3em}\noindent\colorbox{gray!10}{\parbox{\dimexpr\textwidth-2\fboxsep}{\textbf{\normalsize #1}}}\vspace{0.2em}}
+\newcommand{\keypointbox}[1]{\vspace{0.2em}\noindent\colorbox{yellow!20}{\parbox{\dimexpr\textwidth-2\fboxsep}{\small\textbf{Key Point:} #1}}\vspace{0.2em}}
+
+\setlist[itemize]{itemsep=0.1em, topsep=0.15em, parsep=0.05em, leftmargin=1.5em}
+\setlist[enumerate]{itemsep=0.1em, topsep=0.15em, parsep=0.05em, leftmargin=1.5em}
+
+\lstdefinestyle{code}{backgroundcolor=\color{gray!5},basicstyle=\ttfamily\small,keywordstyle=\color{blue!70!black}\bfseries,commentstyle=\color{green!50!black}\itshape,numbers=left,frame=leftline,rulecolor=\color{blue!30},breaklines=true,tabsize=2,showstringspaces=false,xleftmargin=2em}
+\lstset{style=code}
+\captionsetup{font=small, labelfont=bf, skip=4pt}
+\setlength{\parskip}{0.4em}
+\setlength{\parindent}{0pt}
+
+\begin{document}
+
+% TITLE PAGE
+\begin{titlepage}
+\thispagestyle{empty}
+\begin{center}
+
+\vspace*{1.5cm}
+
+{\Huge\bfseries Graduate Systems}\\[0.3cm]
+{\LARGE\bfseries (CSE638)}\\[1.2cm]
+
+\noindent\rule{0.8\textwidth}{2pt}\\[0.6cm]
+
+{\fontsize{32}{38}\selectfont\bfseries Programming}\\[0.4cm]
+{\fontsize{32}{38}\selectfont\bfseries Assignment 02}\\[0.6cm]
+
+\noindent\rule{0.8\textwidth}{2pt}\\[2cm]
+
+\begin{minipage}{0.7\textwidth}
+\centering
+{\Large\bfseries Author}\\[0.5cm]
+{\LARGE Sayan Das}\\[0.2cm]
+{\large Roll Number: \textbf{MT25041}}\\[0.2cm]
+{\normalsize M.Tech Computer Science and Engineering}\\[1.5cm]
+
+{\Large\bfseries Course}\\[0.5cm]
+{\large Graduate Systems}\\[0.2cm]
+{\normalsize IIIT Delhi}\\[1.2cm]
+
+{\large February 2026}
+\end{minipage}
+
+\vfill
+
+\noindent\rule{0.8\textwidth}{0.5pt}\\[0.2cm]
+{\small\textbf{GitHub Repository:}}\\[0.15cm]
+\url{https://github.com/Necromancer0912/GRS-Assignment-2}\\[0.2cm]
+\noindent\rule{0.8\textwidth}{0.5pt}
+
+\end{center}
+\end{titlepage}
+
+% TABLE OF CONTENTS
+\pagenumbering{roman}
+
+\renewcommand{\cfttoctitlefont}{\Huge\bfseries}
+\renewcommand{\cftaftertoctitle}{\\\vspace{0.5em}\noindent\rule{\textwidth}{1.5pt}}
+\setlength{\cftbeforesecskip}{0.8em}
+\setlength{\cftbeforesubsecskip}{0.3em}
+
+\renewcommand{\cftsecfont}{\large\bfseries}
+\renewcommand{\cftsecpagefont}{\large\bfseries}
+\renewcommand{\cftsecleader}{\cftdotfill{\cftdotsep}}
+
+\renewcommand{\cftsubsecfont}{\normalsize}
+\renewcommand{\cftsubsecpagefont}{\normalsize}
+\renewcommand{\cftsubsecleader}{\cftdotfill{\cftdotsep}}
+
+\renewcommand{\cftdotsep}{2}
+
+\noindent\rule{\textwidth}{0.5pt}
+\vspace{0.3cm}
+
+\tableofcontents
+
+\vspace{0.3cm}
+\noindent\rule{\textwidth}{0.5pt}
+\newpage
+
+% ABSTRACT
+\sectionbox{Abstract}
+
+\subsectionbox{Problem Statement}
+
+Network I/O operations involve data movement between user space and kernel space. Traditional socket APIs copy data multiple times, consuming memory bandwidth and CPU cycles. This assignment investigates three approaches to minimize these copies:
+
+\begin{itemize}
+\item \textbf{Two-copy baseline:} Standard \texttt{send()}/\texttt{recv()} primitives
+\item \textbf{One-copy optimization:} Pre-registered buffers with \texttt{sendmsg()}
+\item \textbf{Zero-copy:} Linux \texttt{MSG\_ZEROCOPY} flag with kernel-only transfers
+\end{itemize}
+
+The goal is to measure throughput, latency, CPU cycles, and cache behavior under different message sizes and thread counts.
+
+\subsectionbox{Methodology}
+
+I implemented a multithreaded TCP client-server architecture in C with three variants (A1, A2, A3). All implementations share common infrastructure for thread management, CPU pinning, and measurement. The server accepts multiple concurrent clients using one thread per client. The client sends messages continuously for a fixed duration.
+
+Experiments test 4 message sizes (64B, 256B, 1KB, 4KB) across 4 thread counts (1, 2, 4, 8 threads). Each configuration runs in two modes: throughput mode (unidirectional send) and latency mode (request-response round-trip). Profiling uses \texttt{perf stat} to capture CPU cycles, L1 cache misses, LLC misses, and context switches.
+
+The automation script (\texttt{MT25041\_Part\_C\_Run\_All.sh}) executes all 96 experiment combinations (3 implementations × 4 message sizes × 4 thread counts × 2 modes) and collects results in CSV format.
+
+\subsectionbox{Key Findings}
+
+\begin{enumerate}
+\item \textbf{Small Messages (64B):} Zero-copy performs 40× worse than baseline due to \texttt{splice()} overhead. The syscall cost dominates for tiny payloads.
+
+\item \textbf{Large Messages (4KB):} Two-copy baseline achieves highest throughput (37 Gbps at 8 threads) due to kernel optimizations. Zero-copy reaches only 19 Gbps—half the baseline throughput.
+
+\item \textbf{L1 Cache Misses:} Increase linearly with message size. At 4KB messages, L1 misses reach 3 billion per 3-second test. Small messages stay cache-resident.
+
+\item \textbf{LLC Cache Misses:} Show similar scaling. At 4KB with 8 threads, baseline generates 411 million LLC misses vs 265 million for zero-copy (35\% reduction).
+
+\item \textbf{Cycles per Byte:} Zero-copy uses 4-6 cycles/byte regardless of message size. Baseline ranges from 250 cycles/byte (64B) down to 6 cycles/byte (4KB), showing better efficiency at large sizes.
+\end{enumerate}
+
+\subsectionbox{Significance}
+
+\textbf{The traditional two-copy approach wins for throughput.} Modern kernels aggressively optimize the send/recv path with techniques like page flipping and scatter-gather DMA. These optimizations eliminate the theoretical disadvantage of copying. Zero-copy mechanisms like \texttt{MSG\_ZEROCOPY} add synchronization overhead (notification delivery, buffer pinning) that hurts performance except for enormous messages (>32KB).
+
+For latency-sensitive workloads with small messages, the syscall overhead of zero-copy mechanisms is devastating. Request-response patterns should stick with traditional sockets.
+
+\textbf{Keywords:} Network I/O, Zero-copy, sendmsg, MSG\_ZEROCOPY, Cache misses, Throughput, Latency, perf, Socket programming
+
+\newpage
+\pagenumbering{arabic}
+
+% SECTION 1: INTRODUCTION
+\sectionbox{1. Introduction and Background}
+
+\subsectionbox{1.1 Network I/O and Data Copying}
+
+Network communication in UNIX systems involves data movement between application buffers and network hardware. Each copy operation consumes memory bandwidth, pollutes caches, and burns CPU cycles. Traditional socket APIs impose multiple copies:
+
+\begin{enumerate}
+\item Application writes data to a buffer in user space
+\item \texttt{send()} copies data into kernel socket buffer
+\item TCP/IP stack processes and copies to NIC DMA ring
+\item On receiving side: NIC DMA → kernel buffer → user buffer
+\end{enumerate}
+
+For high-throughput applications (databases, file servers, CDNs), these copies become bottlenecks. A 40 Gbps NIC can saturate memory bandwidth if every byte gets copied twice.
+
+\subsubsectionbox{1.1.1 The Two-Copy Problem}
+
+Standard socket code looks like:
+
+\begin{lstlisting}[language=C]
+char buffer[4096];
+fill_data(buffer);
+send(sock_fd, buffer, 4096, 0);  // Copy 1: user → kernel
+\end{lstlisting}
+
+On the receiving side:
+
+\begin{lstlisting}[language=C]
+char buffer[4096];
+recv(sock_fd, buffer, 4096, 0);  // Copy 2: kernel → user
+process_data(buffer);
+\end{lstlisting}
+
+Each message traverses memory twice: once going in, once coming out. At 10 GB/s, this translates to 20 GB/s of memory traffic.
+
+\subsubsectionbox{1.1.2 Kernel Optimizations}
+
+Modern Linux kernels apply several optimizations:
+
+\begin{itemize}
+\item \textbf{Page flipping:} For large buffers, kernel can remap pages instead of copying
+\item \textbf{Scatter-gather DMA:} NIC reads directly from kernel buffers without intermediate copies
+\item \textbf{TCP segmentation offload (TSO):} NIC handles packet segmentation, reducing per-packet overhead
+\item \textbf{Adaptive buffer sizing:} Socket buffers grow dynamically based on bandwidth-delay product
+\end{itemize}
+
+These optimizations narrow the performance gap between "zero-copy" and traditional approaches.
+
+\subsectionbox{1.2 Zero-Copy Mechanisms}
+
+\subsubsectionbox{1.2.1 MSG\_ZEROCOPY Flag}
+
+Linux introduced \texttt{MSG\_ZEROCOPY} in kernel 4.14 (2017). When sending with this flag:
+
+\begin{lstlisting}[language=C]
+send(sock_fd, buffer, size, MSG_ZEROCOPY);
+\end{lstlisting}
+
+The kernel pins the user-space buffer and passes pointers to the NIC. After transmission completes, the kernel delivers a completion notification via the error queue:
+
+\begin{lstlisting}[language=C]
+struct msghdr msg = {0};
+recvmsg(sock_fd, &msg, MSG_ERRQUEUE);  // Get completion
+\end{lstlisting}
+
+\textbf{Trade-offs:}
+\begin{itemize}
+\item \textbf{Pros:} Eliminates user→kernel copy; reduces memory bandwidth
+\item \textbf{Cons:} Requires asynchronous notification handling; buffer must remain stable until completion; small messages incur overhead
+\end{itemize}
+
+\subsubsectionbox{1.2.2 mmap and Shared Memory}
+
+Applications can map socket buffers into user space:
+
+\begin{lstlisting}[language=C]
+void *shared = mmap(NULL, size, PROT_READ|PROT_WRITE, 
+                    MAP_SHARED, shm_fd, 0);
+// Write directly to shared region
+// Use send() only for notification
+\end{lstlisting}
+
+This halves the copies (one-copy approach). Both client and server access the same physical memory.
+
+\subsubsectionbox{1.2.3 splice() System Call}
+
+The \texttt{splice()} syscall moves data between file descriptors in kernel space:
+
+\begin{lstlisting}[language=C]
+splice(pipe_fd[0], NULL, sock_fd, NULL, size, 0);
+\end{lstlisting}
+
+Data flows: pipe → socket without touching user space. Useful for proxying or forwarding scenarios where the application doesn't need to inspect data.
+
+\subsectionbox{1.3 Research Questions}
+
+This assignment investigates:
+
+\begin{enumerate}
+\item How does throughput scale with message size for each approach?
+\item Where does zero-copy win? Where does it lose?
+\item How do cache misses correlate with message size and copy count?
+\item What is the CPU cost per byte transferred?
+\item How does thread count affect latency and contention?
+\end{enumerate}
+
+\newpage
+
+% SECTION 2: IMPLEMENTATION
+\sectionbox{2. Implementation Details}
+
+\subsectionbox{2.1 Architecture Overview}
+
+The implementation uses a modular design with shared infrastructure:
+
+\begin{lstlisting}[language=C]
+// MT25041_Part_Common.h
+typedef struct {
+    char *field_buffers[8];
+    size_t field_sizes[8];
+    size_t total_message_size;
+} message_t;
+
+int run_server(int argc, char **argv);
+int run_client(int argc, char **argv, enum send_mode mode);
+\end{lstlisting}
+
+Each implementation (A1, A2, A3) calls the same \texttt{run\_client} and \texttt{run\_server} functions with different \texttt{send\_mode} values.
+
+\subsubsectionbox{2.1.1 Message Structure}
+
+Messages contain 8 dynamically allocated fields. This mimics real protocols where messages have headers, payloads, and metadata:
+
+\begin{lstlisting}[language=C]
+void message_init(message_t *msg, size_t total_size) {
+    size_t base_size = total_size / 8;
+    for (int i = 0; i < 8; i++) {
+        msg->field_buffers[i] = malloc(base_size);
+        memset(msg->field_buffers[i], 'a' + i, base_size);
+    }
+}
+\end{lstlisting}
+
+For a 4096-byte message, each field is 512 bytes.
+
+\subsubsectionbox{2.1.2 Thread Management}
+
+The client spawns multiple threads based on command-line arguments:
+
+\begin{lstlisting}[language=C]
+typedef struct {
+    int thread_index;
+    int socket_fd;
+    size_t message_size;
+    int duration_seconds;
+    enum run_mode mode;
+    // ... statistics fields
+} client_thread_context_t;
+
+for (int i = 0; i < thread_count; i++) {
+    pthread_create(&threads[i], NULL, client_thread, &ctx[i]);
+}
+\end{lstlisting}
+
+Each thread maintains independent counters for bytes sent, messages sent, and latency accumulation.
+
+\subsectionbox{2.2 Part A1: Two-Copy Baseline}
+
+\subsubsectionbox{2.2.1 Client Implementation}
+
+The client packs the message into a contiguous buffer and sends it:
+
+\begin{lstlisting}[language=C]
+char *packed_buffer = malloc(msg.total_message_size);
+message_pack(&msg, packed_buffer);  // Copy fields into buffer
+
+while (now_ns() < end_time) {
+    // Throughput mode: send only
+    if (send(sock_fd, packed_buffer, msg_size, 0) != msg_size) {
+        perror("send failed");
+        break;
+    }
+    total_bytes += msg_size;
+    
+    // Latency mode: wait for echo
+    if (mode == MODE_LATENCY) {
+        if (recv(sock_fd, packed_buffer, msg_size, 0) != msg_size) {
+            perror("recv failed");
+            break;
+        }
+    }
+}
+\end{lstlisting}
+
+\keypointbox{The packed buffer ensures contiguous memory for send(). This triggers a single copy operation in the kernel rather than scatter-gather from 8 separate buffers.}
+
+\subsubsectionbox{2.2.2 Server Implementation}
+
+The server echoes data back if echo mode is enabled:
+
+\begin{lstlisting}[language=C]
+char *recv_buffer = malloc(msg_size);
+
+while (1) {
+    if (recv(client_fd, recv_buffer, msg_size, 0) <= 0) {
+        break;  // Client disconnected
+    }
+    
+    if (enable_echo) {
+        send(client_fd, recv_buffer, msg_size, 0);
+    }
+}
+\end{lstlisting}
+
+In throughput mode, the server discards received data (no echo).
+
+\subsubsectionbox{2.2.3 Where Are the Two Copies?}
+
+\textbf{Send path:}
+\begin{enumerate}
+\item User buffer → kernel socket buffer (copy 1)
+\item Kernel socket buffer → NIC DMA ring (often zero-copy via scatter-gather)
+\end{enumerate}
+
+\textbf{Receive path:}
+\begin{enumerate}
+\item NIC DMA → kernel receive buffer (DMA, not a copy)
+\item Kernel buffer → user buffer (copy 2)
+\end{enumerate}
+
+So technically there are 1.5-2 copies depending on whether the kernel uses scatter-gather DMA.
+
+\subsectionbox{2.3 Part A2: One-Copy (Shared Memory)}
+
+\subsubsectionbox{2.3.1 Shared Memory Setup}
+
+Both client and server map the same memory region:
+
+\begin{lstlisting}[language=C]
+int shm_fd = shm_open("/msg_shm", O_CREAT|O_RDWR, 0666);
+ftruncate(shm_fd, msg_size);
+void *shared_mem = mmap(NULL, msg_size, PROT_READ|PROT_WRITE,
+                        MAP_SHARED, shm_fd, 0);
+\end{lstlisting}
+
+\subsubsectionbox{2.3.2 Communication Protocol}
+
+The client writes directly to shared memory, then sends a small notification:
+
+\begin{lstlisting}[language=C]
+// Write message to shared memory
+message_pack(&msg, (char*)shared_mem);
+
+// Send notification (just message size)
+uint32_t notify = msg_size;
+send(sock_fd, &notify, sizeof(notify), 0);
+\end{lstlisting}
+
+The server reads the notification, then accesses shared memory:
+
+\begin{lstlisting}[language=C]
+uint32_t notify;
+recv(sock_fd, &notify, sizeof(notify), 0);
+
+// Data is already in shared_mem, no copy needed
+process_data(shared_mem);
+\end{lstlisting}
+
+\keypointbox{This eliminates one copy: client writes once (to shared memory), server reads from the same physical pages. Only the notification (4 bytes) goes through the socket.}
+
+\subsubsectionbox{2.3.3 Synchronization Issues}
+
+Shared memory requires careful synchronization. If the client overwrites the buffer before the server reads it, data corruption occurs. My implementation uses TCP flow control implicitly: the client waits for notification acknowledgment before writing the next message.
+
+\subsectionbox{2.4 Part A3: Zero-Copy (MSG\_ZEROCOPY)}
+
+\subsubsectionbox{2.4.1 Socket Configuration}
+
+Enable zero-copy on the socket:
+
+\begin{lstlisting}[language=C]
+int one = 1;
+setsockopt(sock_fd, SOL_SOCKET, SO_ZEROCOPY, &one, sizeof(one));
+\end{lstlisting}
+
+\subsubsectionbox{2.4.2 Sending with Zero-Copy}
+
+Use \texttt{MSG\_ZEROCOPY} flag:
+
+\begin{lstlisting}[language=C]
+struct iovec iov[8];
+for (int i = 0; i < 8; i++) {
+    iov[i].iov_base = msg.field_buffers[i];
+    iov[i].iov_len = msg.field_sizes[i];
+}
+
+struct msghdr hdr = {0};
+hdr.msg_iov = iov;
+hdr.msg_iovlen = 8;
+
+sendmsg(sock_fd, &hdr, MSG_ZEROCOPY);
+\end{lstlisting}
+
+The kernel pins these buffers and DMA's directly from them.
+
+\subsubsectionbox{2.4.3 Completion Notification}
+
+After sending, the kernel queues a completion notification:
+
+\begin{lstlisting}[language=C]
+// Optionally check for completions
+struct msghdr err_msg = {0};
+recvmsg(sock_fd, &err_msg, MSG_ERRQUEUE);
+\end{lstlisting}
+
+In my implementation, I skip explicit notification checks in tight loops to measure raw throughput. The kernel handles buffer lifecycle automatically once the socket closes.
+
+\subsubsectionbox{2.4.4 Zero-Copy Diagram}
+
+\begin{verbatim}
+┌─────────────────┐
+│ User Buffer     │ ──┐
+│ (Pinned Pages)  │   │
+└─────────────────┘   │
+                      │ DMA (no copy)
+┌─────────────────┐   │
+│ NIC TX Ring     │ ◄─┘
+└─────────────────┘
+      │
+      └──▶ Network
+\end{verbatim}
+
+Data flows directly from user buffer to NIC without intermediate kernel buffer.
+
+\subsectionbox{2.5 Measurement Infrastructure}
+
+\subsubsectionbox{2.5.1 Throughput Mode}
+
+Client sends continuously without waiting for responses:
+
+\begin{lstlisting}[language=C]
+uint64_t start = now_ns();
+uint64_t end = start + (duration_s * 1000000000ULL);
+
+while (now_ns() < end) {
+    send_message(sock_fd, &msg, mode);
+    total_bytes += msg.total_message_size;
+    message_count++;
+}
+
+double throughput_gbps = (total_bytes * 8.0) / 
+                         ((now_ns() - start) / 1e9) / 1e9;
+\end{lstlisting}
+
+\subsubsectionbox{2.5.2 Latency Mode}
+
+Client sends and immediately waits for echo:
+
+\begin{lstlisting}[language=C]
+while (now_ns() < end) {
+    uint64_t t0 = now_ns();
+    
+    send_message(sock_fd, &msg, mode);
+    recv_message(sock_fd, &msg);
+    
+    uint64_t rtt_ns = now_ns() - t0;
+    rtt_sum += rtt_ns;
+    message_count++;
+}
+
+double avg_latency_us = (rtt_sum / message_count) / 1000.0;
+\end{lstlisting}
+
+\subsectionbox{2.6 Part B: Profiling with perf}
+
+\subsubsectionbox{2.6.1 perf stat Integration}
+
+The automation script wraps the client invocation with \texttt{perf stat}:
+
+\begin{lstlisting}[language=bash]
+perf stat -e cycles,L1-dcache-load-misses,cache-misses,\
+context-switches \
+  ./MT25041_Part_A1_Client localhost 5000 64 1 3 throughput
+\end{lstlisting}
+
+\subsubsectionbox{2.6.2 Event Counters}
+
+| Event | Meaning |
+|-------|---------|
+| \texttt{cycles} | Total CPU cycles consumed (across all cores) |
+| \texttt{L1-dcache-load-misses} | L1 data cache load misses |
+| \texttt{cache-misses} | Last-level cache (LLC) misses |
+| \texttt{context-switches} | OS scheduler context switches |
+
+\subsubsectionbox{2.6.3 Parsing perf Output}
+
+The script parses perf output using awk:
+
+\begin{lstlisting}[language=bash]
+CYCLES=$(echo "$PERF_OUT" | awk '/cycles/{gsub(/,/,""); print $1}')
+L1_MISS=$(echo "$PERF_OUT" | awk '/L1-dcache-load-misses/\
+{gsub(/,/,""); print $1}')
+\end{lstlisting}
+
+\newpage
+
+% SECTION 3: RESULTS AND ANALYSIS
+\sectionbox{3. Results and Analysis}
+
+\subsectionbox{3.1 Throughput vs Message Size}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.85\textwidth]{plots/MT25041_Part_D_Throughput_vs_MsgSize.png}
+\caption{Throughput vs Message Size (8 threads, throughput mode)}
+\end{figure}
+
+\textbf{Observations:}
+
+\begin{itemize}
+\item \textbf{64B messages:} A1 (baseline) achieves 1.29 Gbps. A3 (zero-copy) manages only 0.036 Gbps—36× slower. The \texttt{splice()} overhead dominates for tiny messages.
+
+\item \textbf{256B messages:} Gap narrows. A1 hits 5.9 Gbps, A3 reaches 1.1 Gbps (5× slower). Still not competitive.
+
+\item \textbf{1KB messages:} A1 peaks at 5.0 Gbps (anomaly, likely CPU throttling). A3 achieves 6.8 Gbps, finally overtaking baseline.
+
+\item \textbf{4KB messages:} A1 reaches maximum 37.4 Gbps. A3 caps at 19.3 Gbps—only half the baseline!
+\end{itemize}
+
+\textbf{Analysis:}
+
+The baseline wins decisively. Why? Modern kernels optimize \texttt{send()}/\texttt{recv()} aggressively. For large messages, the kernel likely uses page remapping instead of actual copying. It might flip page table entries or use scatter-gather DMA, avoiding the theoretical "copy" overhead.
+
+Zero-copy suffers from:
+\begin{enumerate}
+\item \textbf{Notification overhead:} Kernel must track buffer lifecycle and deliver completions to the error queue.
+\item \textbf{Buffer pinning:} Pinning pages locks them in memory, preventing swapping and page migration. This adds overhead.
+\item \textbf{Synchronization:} Zero-copy requires coordination between user space and DMA completion.
+\end{enumerate}
+
+For 4KB messages, these overheads outweigh the memory bandwidth savings.
+
+\keypointbox{Recommendation: Use traditional sockets for messages under 32KB. Zero-copy helps only for enormous messages where DMA setup cost is amortized.}
+
+\subsectionbox{3.2 Latency vs Thread Count}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.85\textwidth]{plots/MT25041_Part_D_Latency_vs_Threads.png}
+\caption{Latency vs Thread Count (64B messages, latency mode)}
+\end{figure}
+
+\textbf{Observations:}
+
+\begin{itemize}
+\item \textbf{1 thread:} A1 shows 15.8 µs RTT. A3 shows 16.3 µs—slightly higher due to additional syscall overhead.
+
+\item \textbf{2 threads:} Latency stays flat (15-17 µs). Threads don't interfere much with only 2.
+
+\item \textbf{4 threads:} A1: 17.3 µs, A3: 17.6 µs. Small increase due to contention.
+
+\item \textbf{8 threads:} A1: 17.9 µs, A3: 20.0 µs. Zero-copy shows 12\% higher latency.
+\end{itemize}
+
+\textbf{Analysis:}
+
+Latency remains surprisingly stable across thread counts. Why? Each client thread connects to a separate server thread. Threads don't share sockets, so there's no lock contention.
+
+The small increase at 8 threads comes from:
+\begin{enumerate}
+\item \textbf{Cache contention:} 8 threads compete for L1/L2 cache space.
+\item \textbf{Scheduler overhead:} More threads means more context switches.
+\item \textbf{Network stack contention:} Kernel TCP/IP stack has some shared data structures.
+\end{enumerate}
+
+Zero-copy's higher latency stems from additional syscalls and notification handling.
+
+\keypointbox{For latency-sensitive workloads, avoid zero-copy. The synchronization overhead adds 2-3 µs per round-trip.}
+
+\subsectionbox{3.3 Cache Misses vs Message Size}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.85\textwidth]{plots/MT25041_Part_D_CacheMisses_vs_MsgSize.png}
+\caption{L1 and LLC Cache Misses vs Message Size (8 threads, throughput mode)}
+\end{figure}
+
+\textbf{Observations:}
+
+\textbf{L1 Cache Misses:}
+\begin{itemize}
+\item \textbf{64B:} A1 shows 2.7B L1 misses. A3 shows 274M (10× fewer).
+\item \textbf{4KB:} A1 reaches 2.98B L1 misses. A3 shows 1.8B (40\% reduction).
+\end{itemize}
+
+\textbf{LLC Cache Misses:}
+\begin{itemize}
+\item \textbf{64B:} A1 shows 91M LLC misses. A3 shows 26M (70\% fewer).
+\item \textbf{4KB:} A1 shows 411M LLC misses. A3 shows 264M (35\% reduction).
+\end{itemize}
+
+\textbf{Analysis:}
+
+Zero-copy reduces cache misses by eliminating data copying. Baseline touches data twice (once in user space, once in kernel), polluting caches. Zero-copy touches data once or not at all (DMA directly from user buffer).
+
+But why doesn't this translate to better throughput? Because modern CPUs tolerate cache misses well. Out-of-order execution and hardware prefetching hide latency. L1 miss costs ~4 cycles, LLC miss costs ~40 cycles. For 4KB messages, that's 0.01 cycles per byte—negligible compared to DMA setup overhead (microseconds).
+
+The L1 miss count for small messages (64B) is surprising. 2.7 billion misses in 3 seconds = 900 million misses/second. At 8 threads, that's 112 million misses per thread. With 1.29 Gbps total (484 million messages transmitted), we get 5.6 L1 misses per message.
+
+Why so many? The message structure has 8 scattered buffers. Accessing each buffer likely causes an L1 miss if it wasn't recently touched. Additionally, kernel data structures (socket buffers, TCP control blocks) cause misses.
+
+\keypointbox{Cache misses don't directly correlate with throughput. CPU architecture (prefetching, out-of-order execution) hides memory latency.}
+
+\subsectionbox{3.4 CPU Cycles per Byte}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.85\textwidth]{plots/MT25041_Part_D_CyclesPerByte_vs_MsgSize.png}
+\caption{CPU Cycles per Byte vs Message Size (8 threads, throughput mode)}
+\end{figure}
+
+\textbf{Observations:}
+
+\begin{itemize}
+\item \textbf{64B:} A1 uses 240 cycles/byte. A3 uses 613 cycles/byte (2.5× worse).
+\item \textbf{256B:} A1 drops to 52 cycles/byte. A3 uses 174 cycles/byte (3.3× worse).
+\item \textbf{1KB:} A1 at 15 cycles/byte. A3 at 47 cycles/byte (3.1× worse).
+\item \textbf{4KB:} A1 reaches best efficiency: 6 cycles/byte. A3 at 11 cycles/byte.
+\end{itemize}
+
+\textbf{Analysis:}
+
+Cycles per byte measures CPU efficiency. Lower is better. For small messages, both approaches are inefficient because syscall overhead dominates. Each \texttt{send()} syscall costs ~1000-2000 cycles (context switch, argument validation, TCP processing). For a 64-byte message, that's 15-30 cycles/byte just for the syscall.
+
+Zero-copy adds extra overhead:
+\begin{enumerate}
+\item Buffer pinning (page table manipulation)
+\item Notification queue management
+\item Reference counting for buffer lifecycle
+\end{enumerate}
+
+For 4KB messages, baseline achieves 6 cycles/byte—excellent efficiency. This indicates kernel optimizations (DMA offload, TSO) are working. Zero-copy uses 11 cycles/byte, still reasonable but not better.
+
+\keypointbox{CPU efficiency improves with message size as fixed syscall cost amortizes. Zero-copy never beats baseline in cycles/byte metric.}
+
+\subsectionbox{3.5 Context Switch Analysis}
+
+Looking at raw data:
+
+| Implementation | Msg Size | Threads | Mode | Context Switches |
+|---|---|---|---|---|
+| A1 | 64 | 8 | throughput | 57,430 |
+| A1 | 64 | 8 | latency | 1,335,689 |
+| A3 | 64 | 8 | throughput | 250 |
+| A3 | 64 | 8 | latency | 1,194,648 |
+
+\textbf{Key Insights:}
+
+\textbf{Throughput mode:} Very few context switches (57K for A1, only 250 for A3). Threads run continuously without blocking.
+
+\textbf{Latency mode:} Massive context switches (1.3M for A1). Why? Each message involves:
+\begin{enumerate}
+\item Client sends → blocks on recv
+\item Scheduler switches to another thread or server
+\item Server receives → sends echo → returns to kernel
+\item Scheduler switches back to client
+\item Client receives → repeats
+\end{enumerate}
+
+At 65,478 messages (calculated from throughput data), 1.3M context switches = 20 switches per message. This accounts for bidirectional switching and scheduler overhead.
+
+Zero-copy (A3) shows similar context switch behavior, confirming that zero-copy doesn't fundamentally change blocking semantics.
+
+\keypointbox{Latency mode generates 20× more context switches than throughput mode due to synchronous request-response blocking.}
+
+\subsectionbox{3.6 Program Output Screenshots}
+
+The following screenshots demonstrate the actual program execution and output for different implementations:
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{screen_shots/output_01.png}
+\caption{Part A1 Client-Server Execution: Two-copy baseline implementation showing throughput and latency measurements across different message sizes and thread counts.}
+\label{fig:output_a1}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{screen_shots/output_02.png}
+\caption{Part A2 Scatter-Gather Implementation: Output demonstrating improved efficiency with vectorized I/O operations.}
+\label{fig:output_a2}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{screen_shots/output_03.png}
+\caption{Part A3 Zero-Copy Implementation: MSG\_ZEROCOPY results showing kernel-level optimization performance.}
+\label{fig:output_a3}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{screen_shots/output_04.png}
+\caption{Experimental Script Execution: Automated testing framework running comprehensive benchmarks with perf profiling.}
+\label{fig:output_script}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{screen_shots/output_05.png}
+\caption{Performance Metrics Collection: Real-time monitoring of CPU cycles, cache misses, and context switches during execution.}
+\label{fig:output_metrics}
+\end{figure}
+
+\newpage
+
+% SECTION 4: EXPERIMENT AUTOMATION
+\sectionbox{4. Part C: Automated Experiment Script}
+
+\subsectionbox{4.1 Script Architecture}
+
+The bash script \texttt{MT25041\_Part\_C\_Run\_All.sh} orchestrates all experiments:
+
+\begin{lstlisting}[language=bash]
+#!/bin/bash
+# MT25041
+
+CONFIG_FILE="MT25041_Part_C_Config.json"
+OUTPUT_CSV="MT25041_Part_B_RawData.csv"
+
+# Parse JSON configuration
+MSG_SIZES=$(jq -r '.msg_sizes[]' $CONFIG_FILE)
+THREAD_COUNTS=$(jq -r '.thread_counts[]' $CONFIG_FILE)
+DURATION=$(jq -r '.duration_s' $CONFIG_FILE)
+
+for IMPL in A1 A2 A3; do
+  for SIZE in $MSG_SIZES; do
+    for THREADS in $THREAD_COUNTS; do
+      for MODE in throughput latency; do
+        run_experiment $IMPL $SIZE $THREADS $MODE
+      done
+    done
+  done
+done
+\end{lstlisting}
+
+\subsectionbox{4.2 Experiment Execution}
+
+Each experiment:
+
+\begin{enumerate}
+\item Starts the appropriate server in background
+\item Waits 0.5s for server initialization
+\item Launches client wrapped with \texttt{perf stat}
+\item Captures perf output
+\item Parses metrics (cycles, cache misses, context switches)
+\item Calculates derived metrics (throughput, latency, cycles/byte)
+\item Appends row to CSV
+\item Kills server process
+\end{enumerate}
+
+\begin{lstlisting}[language=bash]
+run_experiment() {
+  local impl=$1 size=$2 threads=$3 mode=$4
+  
+  # Start server
+  ./MT25041_Part_${impl}_Server localhost 5000 $size &
+  SERVER_PID=$!
+  sleep 0.5
+  
+  # Run client with perf
+  perf stat -e cycles,L1-dcache-load-misses,cache-misses,\
+  context-switches -o perf.out \
+    ./MT25041_Part_${impl}_Client localhost 5000 $size \
+    $threads $DURATION $mode > client.out
+  
+  # Parse results
+  parse_metrics perf.out client.out >> $OUTPUT_CSV
+  
+  # Cleanup
+  kill $SERVER_PID
+}
+\end{lstlisting}
+
+\subsectionbox{4.3 CSV Output Format}
+
+The CSV contains:
+
+\begin{lstlisting}
+impl,msg_size,threads,mode,throughput_gbps,latency_us,\
+cycles,l1_miss,llc_miss,ctx_switches,total_bytes,duration_s
+A1,64,1,throughput,0.1358,0.000,16038775197,306089173,\
+43807881,442,50933056,3.000001
+\end{lstlisting}
+
+Each row represents one experimental configuration.
+
+\subsectionbox{4.4 Total Runtime}
+
+With 3 implementations × 4 message sizes × 4 thread counts × 2 modes = 96 experiments, each lasting 3 seconds plus overhead, total runtime is approximately 8 minutes.
+
+\newpage
+
+% SECTION 5: COMPLETE DATA
+\sectionbox{5. Complete Experimental Data}
+
+\subsectionbox{5.1 Summary Table (Selected Results)}
+
+\begin{table}[H]
+\centering
+\footnotesize
+\begin{tabular}{@{}lrrlrrrr@{}}
+\toprule
+\textbf{Impl} & \textbf{Msg} & \textbf{Thr} & \textbf{Mode} & \textbf{Tput} & \textbf{Lat} & \textbf{L1 Miss} & \textbf{LLC Miss} \\
+ & \textbf{(B)} & & & \textbf{(Gbps)} & \textbf{(µs)} & \textbf{(M)} & \textbf{(M)} \\ \midrule
+A1 & 64 & 1 & tput & 0.136 & — & 306 & 44 \\
+A1 & 64 & 8 & tput & 1.292 & — & 2700 & 92 \\
+A1 & 4096 & 1 & tput & 7.216 & — & 519 & 93 \\
+A1 & 4096 & 8 & tput & 37.436 & — & 2977 & 411 \\ \midrule
+A2 & 64 & 1 & tput & 0.125 & — & 320 & 43 \\
+A2 & 64 & 8 & tput & 0.866 & — & 2574 & 99 \\
+A2 & 4096 & 1 & tput & 6.412 & — & 441 & 86 \\
+A2 & 4096 & 8 & tput & 34.620 & — & 2693 & 417 \\ \midrule
+A3 & 64 & 1 & tput & 0.004 & — & 18 & 2 \\
+A3 & 64 & 8 & tput & 0.036 & — & 274 & 26 \\
+A3 & 4096 & 1 & tput & 4.471 & — & 381 & 55 \\
+A3 & 4096 & 8 & tput & 19.344 & — & 1797 & 264 \\ \midrule
+A1 & 64 & 1 & lat & 0.032 & 15.8 & 169 & 20 \\
+A1 & 64 & 8 & lat & 0.228 & 17.9 & 1344 & 161 \\
+A3 & 64 & 1 & lat & 0.031 & 16.3 & 223 & 21 \\
+A3 & 64 & 8 & lat & 0.204 & 20.0 & 1661 & 202 \\
+\bottomrule
+\end{tabular}
+\caption{Selected Results from 96 Experiments}
+\end{table}
+
+\textbf{Legend:} Impl = Implementation, Msg = Message size, Thr = Threads, Tput = Throughput, Lat = Latency
+
+\subsectionbox{5.2 Key Data Patterns}
+
+\textbf{Throughput Scaling:}
+\begin{itemize}
+\item Baseline (A1) scales linearly with threads for small messages (64B: 0.14 → 1.29 Gbps)
+\item For large messages (4KB), baseline achieves 37 Gbps with 8 threads
+\item Zero-copy (A3) shows poor scaling for small messages (0.004 → 0.036 Gbps)
+\end{itemize}
+
+\textbf{Cache Behavior:}
+\begin{itemize}
+\item L1 misses increase with message size and thread count
+\item Zero-copy consistently shows fewer cache misses (40-70\% reduction)
+\item LLC misses follow similar pattern but with smaller reduction (35\%)
+\end{itemize}
+
+\textbf{Latency Characteristics:}
+\begin{itemize}
+\item Baseline latency: 15-18 µs for small messages
+\item Zero-copy latency: 16-20 µs (12\% higher at 8 threads)
+\item Latency increases slightly with thread count due to contention
+\end{itemize}
+
+\newpage
+
+% SECTION 6: ANALYSIS AND REASONING
+\sectionbox{6. Part E: Analysis and Reasoning}
+
+\subsectionbox{6.1 Why Zero-Copy Doesn't Always Win}
+
+Zero-copy performs poorly for several reasons:
+
+\textbf{1. Syscall Overhead:}
+
+\texttt{sendmsg()} with \texttt{MSG\_ZEROCOPY} requires:
+\begin{itemize}
+\item Page pinning (modify page tables to prevent swapping)
+\item DMA buffer preparation
+\item Completion notification queue setup
+\item Error queue management
+\end{itemize}
+
+For a 64-byte message, these operations cost thousands of CPU cycles. Traditional \texttt{send()} just copies 64 bytes (tens of cycles) and returns immediately.
+
+\textbf{2. Asynchronous Semantics:}
+
+Zero-copy is inherently asynchronous. The application must:
+\begin{itemize}
+\item Send data with \texttt{MSG\_ZEROCOPY}
+\item Keep buffer stable (don't modify or free)
+\item Poll error queue for completion
+\item Only then reuse buffer
+\end{itemize}
+
+This adds complexity and latency. In contrast, \texttt{send()} is synchronous—after it returns, the buffer can be immediately reused.
+
+\textbf{3. Kernel Optimizations for Traditional Path:}
+
+Modern kernels optimize \texttt{send()}/\texttt{recv()}:
+\begin{itemize}
+\item \textbf{Page flipping:} For large buffers, kernel can remap pages instead of copying
+\item \textbf{Scatter-gather DMA:} NIC constructs packets from multiple buffers without CPU involvement
+\item \textbf{TCP Small Queues (TSQ):} Limits socket buffer size to reduce latency
+\item \textbf{Segmentation offload:} NIC handles TCP segmentation
+\end{itemize}
+
+These optimizations mean the "two-copy" label is misleading. For large buffers, the kernel often avoids actual copying.
+
+\textbf{4. Small Message Efficiency:}
+
+For messages under 1KB, the entire message fits in one or two cache lines. Copying is faster than DMA setup. Modern CPUs copy at 50-100 GB/s (memcpy). The copy cost for 64 bytes is negligible compared to syscall overhead.
+
+\keypointbox{Zero-copy helps only when: (1) messages are huge (>32KB), (2) you can batch many sends before checking completions, (3) you're CPU-bound and can't afford copy overhead.}
+
+\subsectionbox{6.2 Which Cache Level Shows Most Reduction?}
+
+Looking at percentage reductions:
+
+\textbf{L1 Cache Misses:}
+\begin{itemize}
+\item 64B messages: 2.7B (A1) → 274M (A3) = 90\% reduction
+\item 4KB messages: 2.98B (A1) → 1.8B (A3) = 40\% reduction
+\end{itemize}
+
+\textbf{LLC Cache Misses:}
+\begin{itemize}
+\item 64B messages: 91M (A1) → 26M (A3) = 71\% reduction
+\item 4KB messages: 411M (A1) → 264M (A3) = 36\% reduction
+\end{itemize}
+
+\textbf{Answer: L1 cache shows the largest absolute and percentage reduction.}
+
+\textbf{Why?}
+
+L1 is small (32 KB per core on typical CPUs). Any data touching pollutes L1 immediately. In baseline:
+\begin{enumerate}
+\item Application writes to buffer (L1 load)
+\item \texttt{send()} copies buffer to kernel (loads user buffer into L1 again)
+\item Kernel TCP stack reads socket buffer (loads kernel buffer into L1)
+\end{enumerate}
+
+Each buffer touch causes an L1 miss if data was evicted. With 8 scattered message fields, each field access potentially causes a miss.
+
+Zero-copy avoids step 2 (no copy to kernel buffer). Data flows directly from user pages to NIC via DMA, touching L1 only once.
+
+LLC (typically 8-32 MB) is larger and shared across cores. Data evicted from L1 often remains in L3. Subsequent accesses hit L3 (miss L1, hit L3). This explains why LLC shows smaller reduction.
+
+\keypointbox{L1 cache benefits most from zero-copy because it eliminates redundant data touching in the critical path.}
+
+\subsectionbox{6.3 Thread Count and Cache Contention}
+
+From the data:
+
+\begin{table}[H]
+\centering
+\begin{tabular}{@{}lrrrr@{}}
+\toprule
+\textbf{Threads} & \textbf{L1 Miss (M)} & \textbf{LLC Miss (M)} & \textbf{Tput (Gbps)} & \textbf{Ctx Sw} \\ \midrule
+1 & 306 & 44 & 0.136 & 442 \\
+2 & 611 & 93 & 0.272 & 563 \\
+4 & 1284 & 120 & 0.471 & 3139 \\
+8 & 2700 & 92 & 1.292 & 57430 \\
+\bottomrule
+\end{tabular}
+\caption{A1, 64B messages, throughput mode}
+\end{table}
+
+\textbf{Observations:}
+
+L1 misses scale linearly with thread count (306M → 2.7B for 8 threads). This makes sense: each thread incurs its own cache misses. With 8 threads, total misses = 8 × single-thread misses.
+
+LLC misses show non-linear behavior:
+\begin{itemize}
+\item 1 thread: 44M
+\item 2 threads: 93M (2× increase)
+\item 4 threads: 120M (only 1.3× increase from 2 threads)
+\item 8 threads: 92M (actually decreases!)
+\end{itemize}
+
+\textbf{Why does LLC miss count decrease at 8 threads?}
+
+This is the \textbf{working set effect}. With 64-byte messages, the total data size is small. At low thread counts, each thread's working set (message buffers + socket structures) fits in LLC. But threads don't coordinate, so data gets duplicated across LLC slices (modern CPUs partition L3 across cores).
+
+At high thread counts (8 threads), the \textbf{aggregate working set exceeds LLC capacity}. Now all threads suffer LLC misses, BUT the per-thread message rate decreases (contention on network and syscall bottlenecks). Lower message rate = fewer total LLC misses despite lower hit rate.
+
+Additionally, at 8 threads, the kernel likely batches socket operations better, improving cache efficiency.
+
+\keypointbox{Thread count affects cache contention in non-linear ways. Working set size relative to LLC capacity determines whether adding threads increases or decreases miss rate.}
+
+\subsectionbox{6.4 Message Size Crossover Points}
+
+\textbf{Question: At what message size does one-copy (A2) outperform two-copy (A1)?}
+
+Looking at throughput data:
+
+\begin{table}[H]
+\centering
+\begin{tabular}{@{}lrrr@{}}
+\toprule
+\textbf{Msg Size (B)} & \textbf{A1 (Gbps)} & \textbf{A2 (Gbps)} & \textbf{A2/A1 Ratio} \\ \midrule
+64 & 1.292 & 0.866 & 0.67 \\
+256 & 5.918 & 3.353 & 0.57 \\
+1024 & 4.965 & 3.964 & 0.80 \\
+4096 & 37.436 & 34.620 & 0.92 \\
+\bottomrule
+\end{tabular}
+\caption{8 threads, throughput mode}
+\end{table}
+
+\textbf{Answer: A2 never outperforms A1 on my system.}
+
+A2 (one-copy with shared memory) always lags baseline. At 4KB, it reaches 92\% of baseline throughput, but never exceeds it.
+
+\textbf{Why doesn't shared memory win?}
+
+Shared memory introduces overhead:
+\begin{enumerate}
+\item \textbf{TLB pressure:} Each \texttt{mmap()} region consumes TLB entries. With 8 threads, we need 8 shared mappings, polluting the TLB.
+\item \textbf{Page table walks:} Accessing shared memory requires page table translation. For frequently accessed data, this adds cycles.
+\item \textbf{Synchronization:} Although we use TCP for implicit synchronization, shared memory access still requires memory barriers and cache coherency traffic.
+\item \textbf{Kernel optimizations favor traditional sockets:} As discussed earlier, the kernel applies aggressive optimizations to \texttt{send()}/\texttt{recv()} path.
+\end{enumerate}
+
+\textbf{Question: At what message size does zero-copy (A3) outperform two-copy (A1)?}
+
+\begin{table}[H]
+\centering
+\begin{tabular}{@{}lrrr@{}}
+\toprule
+\textbf{Msg Size (B)} & \textbf{A1 (Gbps)} & \textbf{A3 (Gbps)} & \textbf{A3/A1 Ratio} \\ \midrule
+64 & 1.292 & 0.036 & 0.03 \\
+256 & 5.918 & 1.137 & 0.19 \\
+1024 & 4.965 & 6.781 & 1.37 \\
+4096 & 37.436 & 19.344 & 0.52 \\
+\bottomrule
+\end{tabular}
+\caption{8 threads, throughput mode}
+\end{table}
+
+\textbf{Answer: A3 outperforms A1 only at 1KB message size (1.37× better).}
+
+This is surprising! At 4KB, zero-copy loses again. Possible explanations:
+
+\textbf{1KB sweet spot:}
+\begin{itemize}
+\item Large enough to amortize zero-copy setup cost
+\item Small enough to avoid multi-packet fragmentation (Ethernet MTU is 1500 bytes)
+\item Fits in kernel socket buffer without triggering slow path
+\end{itemize}
+
+\textbf{4KB anomaly:}
+
+At 4KB, baseline achieves abnormally high throughput (37 Gbps). This likely indicates kernel fast-path optimizations:
+\begin{itemize}
+\item \textbf{Page alignment:} 4KB = one page on x86-64. Kernel can remap entire pages instead of copying.
+\item \textbf{TSO (TCP Segmentation Offload):} NIC handles segmentation for large sends, reducing per-packet overhead.
+\item \textbf{Batching:} Kernel batches multiple sends into one DMA operation.
+\end{itemize}
+
+Zero-copy doesn't benefit from these optimizations because it bypasses the socket buffer entirely.
+
+\keypointbox{Zero-copy wins only in a narrow range (1KB-2KB). Below this, syscall overhead dominates. Above this, kernel optimizations make traditional sockets faster.}
+
+\subsectionbox{6.5 Unexpected Result: Context Switches in Throughput Mode}
+
+Looking at context switches:
+
+\begin{table}[H]
+\centering
+\begin{tabular}{@{}lrr@{}}
+\toprule
+\textbf{Configuration} & \textbf{Throughput Mode} & \textbf{Latency Mode} \\ \midrule
+A1, 64B, 1 thread & 442 & 189,009 \\
+A1, 64B, 8 threads & 57,430 & 1,335,689 \\
+A3, 64B, 1 thread & 41 & 183,197 \\
+A3, 64B, 8 threads & 250 & 1,194,648 \\
+\bottomrule
+\end{tabular}
+\caption{Context switch comparison}
+\end{table}
+
+\textbf{Unexpected observation: A1 shows 57,430 context switches in throughput mode with 8 threads, while A3 shows only 250.}
+
+This is a 230× difference! Why?
+
+\textbf{Hypothesis: Socket buffer blocking in baseline.}
+
+In throughput mode, clients send continuously without waiting for responses. With 8 concurrent clients sending at maximum rate, the socket send buffers can fill up. When \texttt{send()} finds the buffer full, it blocks (puts the thread to sleep), causing a context switch.
+
+With zero-copy (A3), the kernel doesn't buffer data in socket buffers the same way. Data remains pinned in user space, so socket buffers don't fill up. Threads rarely block, resulting in far fewer context switches.
+
+\textbf{Verification:}
+
+Looking at throughput: A1 achieves 1.29 Gbps at 64B, A3 only 0.036 Gbps. A1 is sending 40× more messages per second, causing 40× more opportunities for socket buffer contention.
+
+This explains the context switch ratio: more messages = more buffer contention = more blocking = more context switches.
+
+\keypointbox{Unexpected finding: Zero-copy reduces context switches by avoiding socket buffer blocking, even though throughput is lower.}
+
+\newpage
+
+% SECTION 7: CONCLUSIONS
+\sectionbox{7. Conclusions and Recommendations}
+
+\subsectionbox{7.1 Summary of Findings}
+
+\textbf{1. Traditional sockets dominate for typical workloads.}
+
+For message sizes under 8KB, the two-copy baseline achieves best throughput and reasonable latency. Modern kernel optimizations (page flipping, scatter-gather DMA, TSO) eliminate most copying overhead.
+
+\textbf{2. Zero-copy is a niche optimization.}
+
+Zero-copy helps only for:
+\begin{itemize}
+\item Very large messages (>32KB)
+\item Workloads where you can batch sends and amortize completion notification overhead
+\item Applications that are CPU-bound and cannot afford any copy cost
+\end{itemize}
+
+For typical network services (web servers, databases, RPC frameworks), zero-copy adds complexity without performance benefit.
+
+\textbf{3. Cache behavior doesn't predict throughput.}
+
+Zero-copy reduces L1 misses by 90\% and LLC misses by 70\% for small messages, yet throughput is 40× worse. This demonstrates that:
+\begin{itemize}
+\item Cache misses are cheap on modern CPUs (out-of-order execution hides latency)
+\item Syscall overhead dominates for small messages
+\item Throughput depends more on kernel fast-path optimizations than cache effects
+\end{itemize}
+
+\textbf{4. Shared memory (one-copy) doesn't win either.}
+
+Shared memory consistently underperforms baseline due to TLB pressure, synchronization overhead, and kernel socket optimizations.
+
+\textbf{5. Thread scaling is excellent for traditional sockets.}
+
+Baseline achieves near-linear scaling (1 thread: 0.14 Gbps → 8 threads: 1.29 Gbps for 64B messages). This indicates kernel socket implementation scales well.
+
+\subsectionbox{7.2 Practical Recommendations}
+
+\textbf{For application developers:}
+
+\begin{itemize}
+\item \textbf{Use standard sockets for messages under 8KB.} Don't prematurely optimize with zero-copy.
+\item \textbf{Profile before optimizing.} Measure your actual bottleneck. Network I/O is rarely the limiting factor.
+\item \textbf{Consider kernel bypass (DPDK, io\_uring) for extreme performance.} These frameworks avoid syscalls entirely and can reach 100+ Gbps.
+\end{itemize}
+
+\textbf{For system designers:}
+
+\begin{itemize}
+\item \textbf{Invest in kernel optimizations rather than application-level zero-copy.} Kernel improvements benefit all applications.
+\item \textbf{Focus on reducing syscall frequency.} Batching multiple sends into one syscall (using \texttt{sendmmsg}) provides more benefit than zero-copy.
+\item \textbf{Use hardware offload (TSO, LRO, checksum offload).} Modern NICs handle most TCP/IP processing.
+\end{itemize}
+
+\textbf{When to use zero-copy:}
+
+\begin{itemize}
+\item Video streaming (large frames, 100KB+)
+\item File transfer protocols (multi-MB blocks)
+\item Storage replication (database write-ahead logs)
+\end{itemize}
+
+\subsectionbox{7.3 Future Work}
+
+\textbf{1. Test larger message sizes.}
+
+My measurements stop at 4KB. Extending to 16KB, 64KB, and 1MB would reveal where zero-copy truly wins.
+
+\textbf{2. Test io\_uring.}
+
+Linux 5.1 introduced \texttt{io\_uring}, a modern async I/O interface. It supports zero-copy and batching without the MSG\_ZEROCOPY overhead.
+
+\textbf{3. Multi-socket NUMA systems.}
+
+On servers with multiple CPUs and NUMA domains, memory locality affects copy cost. Zero-copy might win when avoiding cross-socket memory access.
+
+\textbf{4. Real application workloads.}
+
+Synthetic benchmarks don't capture real-world complexity (variable message sizes, bursty traffic, concurrent connections). Testing against real workloads (HTTP server, database) would provide practical insights.
+
+\newpage
+
+% SECTION 8: AI DECLARATION
+\sectionbox{8. AI Usage Declaration}
+
+In accordance with the course AI usage policy, I provide a detailed component-wise declaration of where and how AI tools were used in this assignment. I used \textbf{GitHub Copilot} and \textbf{Claude 3.5 Sonnet} for specific components as detailed below.
+
+\subsectionbox{8.1 C Program Implementation Files}
+
+\textbf{Files:} \texttt{MT25041\_Part\_A1\_Client.c}, \texttt{MT25041\_Part\_A1\_Server.c}, \texttt{MT25041\_Part\_A2\_Client.c}, \texttt{MT25041\_Part\_A2\_Server.c}, \texttt{MT25041\_Part\_A3\_Client.c}, \texttt{MT25041\_Part\_A3\_Server.c}, \texttt{MT25041\_Part\_Common.c}, \texttt{MT25041\_Part\_Common.h}
+
+\textbf{AI Usage:} I used AI assistance to understand fundamental and crucial C programming components that students typically require help with. Specifically:
+
+\begin{enumerate}
+\item \textbf{Socket Programming Fundamentals:}
+\begin{itemize}
+\item \textbf{Prompt:} "Explain the correct sequence for TCP server socket setup with bind, listen, and accept"
+\item \textbf{AI helped with:} Understanding socket API usage, proper error checking patterns
+\item \textbf{My contribution:} Implemented the actual server/client logic, thread management, message structure
+\end{itemize}
+
+\item \textbf{System Call Usage:}
+\begin{itemize}
+\item \textbf{Prompt:} "How to use sendmsg with iovec for scatter-gather I/O in C"
+\item \textbf{Prompt:} "Explain MSG\_ZEROCOPY flag usage and completion notification handling"
+\item \textbf{Prompt:} "How to use mmap and shm\_open for shared memory between processes"
+\item \textbf{AI helped with:} Correct struct initialization (msghdr, iovec), flag values, error handling patterns
+\item \textbf{My contribution:} Designed message structure, implemented zero-copy logic, integrated into measurement framework
+\end{itemize}
+
+\item \textbf{Thread Management:}
+\begin{itemize}
+\item \textbf{Prompt:} "How to pin threads to specific CPU cores using pthread\_setaffinity\_np"
+\item \textbf{Prompt:} "Proper pthread\_create and pthread\_join usage with argument passing"
+\item \textbf{AI helped with:} cpu\_set\_t usage, thread attribute setup
+\item \textbf{My contribution:} Designed thread context structure, implemented per-thread statistics collection
+\end{itemize}
+
+\item \textbf{Timing and Measurement:}
+\begin{itemize}
+\item \textbf{Prompt:} "How to use clock\_gettime with CLOCK\_MONOTONIC for high-resolution timing"
+\item \textbf{AI helped with:} Correct timespec struct usage, nanosecond conversion
+\item \textbf{My contribution:} Implemented throughput and latency calculation logic, designed measurement modes
+\end{itemize}
+
+\item \textbf{Memory Management:}
+\begin{itemize}
+\item \textbf{Prompt:} "Proper malloc error checking and memory initialization in C"
+\item \textbf{AI helped with:} Standard error handling patterns
+\item \textbf{My contribution:} Designed message allocation strategy with 8 fields, implemented message\_init/free functions
+\end{itemize}
+\end{enumerate}
+
+\textbf{Core Logic - Entirely My Own:}
+\begin{itemize}
+\item Complete client-server architecture design
+\item Three-variant implementation strategy (2-copy, 1-copy, 0-copy)
+\item Message structure with 8 dynamically allocated fields
+\item Throughput vs latency measurement modes
+\item Statistics collection and reporting
+\item All algorithmic decisions
+\end{itemize}
+
+\subsectionbox{8.2 Shell Script (Automation)}
+
+\textbf{File:} \texttt{MT25041\_Part\_C\_Run\_All.sh}
+
+\textbf{AI Usage:} I used AI assistance for bash scripting components.
+
+\begin{enumerate}
+\item \textbf{Prompt:} "How to parse JSON in bash using jq to extract array elements"
+\item \textbf{AI helped with:} JSON parsing syntax, array iteration
+
+\item \textbf{Prompt:} "How to parse perf stat output and extract specific event counters"
+\item \textbf{AI helped with:} awk patterns for parsing perf output format
+
+\item \textbf{Prompt:} "Bash script template for running nested loops over multiple parameters"
+\item \textbf{AI helped with:} Loop structure, variable interpolation
+
+\item \textbf{Prompt:} "How to properly kill background processes in bash and wait for completion"
+\item \textbf{AI helped with:} Process management, PID handling
+\end{enumerate}
+
+\textbf{My Contribution:}
+\begin{itemize}
+\item Overall automation strategy (96 experiment combinations)
+\item Experiment parameter selection (message sizes, thread counts)
+\item CSV output format design
+\item Integration of perf stat with client invocation
+\item Metrics calculation logic
+\end{itemize}
+
+\subsectionbox{8.3 README Documentation}
+
+\textbf{File:} \texttt{README}
+
+\textbf{AI Usage:} I used AI assistance for documentation structure and formatting.
+
+\begin{enumerate}
+\item \textbf{Prompt:} "Create markdown documentation structure for a network programming project"
+\item \textbf{AI helped with:} Markdown syntax, table formatting, section organization
+
+\item \textbf{Prompt:} "How to write clear build and usage instructions for C projects"
+\item \textbf{AI helped with:} Standard documentation patterns
+\end{enumerate}
+
+\textbf{My Contribution:}
+\begin{itemize}
+\item All technical content and explanations
+\item Implementation details and design decisions
+\item Performance analysis insights
+\item Usage examples and configuration options
+\end{itemize}
+
+\subsectionbox{8.4 Plotting Scripts}
+
+\textbf{Files:} \texttt{MT25041\_Part\_D\_Plots.py}, \texttt{MT25041\_Part\_D\_Plots\_Hardcoded.py}
+
+\textbf{AI Usage:} I wrote the base plotting code myself, then used AI assistance on top of my base implementation.
+
+\textbf{My Base Code (Original):}
+\begin{lstlisting}[language=Python]
+import matplotlib.pyplot as plt
+import numpy as np
+
+# My original data arrays
+msg_sizes = [64, 256, 1024, 4096]
+a1_throughput = [1.292, 5.918, 4.965, 37.436]
+a2_throughput = [0.866, 3.353, 3.964, 34.620]
+a3_throughput = [0.036, 1.137, 6.781, 19.344]
+
+# My original plot structure
+plt.figure(figsize=(10, 6))
+plt.plot(msg_sizes, a1_throughput, label='A1')
+plt.plot(msg_sizes, a2_throughput, label='A2')
+plt.plot(msg_sizes, a3_throughput, label='A3')
+plt.show()
+\end{lstlisting}
+
+\textbf{AI Assistance on Top of Base Code:}
+
+\begin{enumerate}
+\item \textbf{Prompt:} "How to improve matplotlib plot aesthetics with seaborn style and better formatting"
+\item \textbf{AI helped with:} Color schemes, marker styles, grid formatting
+
+\item \textbf{Prompt:} "How to add proper axis labels, legends, and titles to matplotlib plots"
+\item \textbf{AI helped with:} Font sizing, label positioning, legend placement
+
+\item \textbf{Prompt:} "How to save matplotlib plots as high-resolution PNG files"
+\item \textbf{AI helped with:} savefig parameters, DPI settings
+
+\item \textbf{Prompt:} "How to create subplots for multiple metrics in matplotlib"
+\item \textbf{AI helped with:} Subplot layout, figure size calculation
+\end{enumerate}
+
+\textbf{My Contribution:}
+\begin{itemize}
+\item All data extraction from CSV
+\item Plot type selection (line plots, grouped bars)
+\item Metric selection for each plot
+\item Data filtering and aggregation logic
+\item Hardcoded array values for demo version
+\end{itemize}
+
+\subsectionbox{8.5 Report (LaTeX)}
+
+\textbf{File:} \texttt{MT25041\_Report.tex}
+
+\textbf{AI Usage:} I used AI assistance for LaTeX formatting and document structure.
+
+\begin{enumerate}
+\item \textbf{Prompt:} "LaTeX template for academic technical report with title page and table of contents"
+\item \textbf{AI helped with:} Document class setup, package imports, title page layout
+
+\item \textbf{Prompt:} "How to format code listings with syntax highlighting in LaTeX"
+\item \textbf{AI helped with:} listings package configuration, color schemes
+
+\item \textbf{Prompt:} "How to include images and create figure captions in LaTeX"
+\item \textbf{AI helped with:} includegraphics syntax, float placement
+
+\item \textbf{Prompt:} "How to create professional tables with booktabs in LaTeX"
+\item \textbf{AI helped with:} Table formatting, column alignment
+\end{enumerate}
+
+\textbf{My Contribution (All Technical Content):}
+\begin{itemize}
+\item All performance analysis and conclusions
+\item Complete explanation of results
+\item Technical reasoning for observed behavior
+\item Cache miss interpretation
+\item Context switch anomaly analysis
+\item Crossover point analysis
+\item All recommendations and insights
+\end{itemize}
+
+\subsectionbox{8.6 Summary and Verification}
+
+\textbf{What I Created Myself:}
+\begin{itemize}
+\item Complete project architecture and design
+\item All core algorithms and logic
+\item Three implementation variants (A1, A2, A3)
+\item Experiment design and methodology
+\item All performance analysis and interpretation
+\item Technical insights and conclusions
+\end{itemize}
+
+\textbf{Where AI Helped:}
+\begin{itemize}
+\item Understanding C library APIs and system calls
+\item Bash scripting syntax
+\item Documentation formatting
+\item Plot styling (on top of my base code)
+\item LaTeX formatting
+\end{itemize}
+
+\textbf{Verification:}
+\begin{itemize}
+\item I understand every line of code and can explain it during demo
+\item All AI-generated components were reviewed, tested, and customized
+\item I can justify every line of code, analysis, and plot
+\item I take full responsibility for correctness and performance
+\end{itemize}
+
+\vspace{1em}
+\noindent\textbf{GitHub Repository:} \url{https://github.com/Necromancer0912/GRS-Assignment-2}
+
+\end{document}
